@@ -2,7 +2,7 @@ import os
 import random
 import pendulum
 from flask import Flask, jsonify
-from otf_api import Otf
+from otf_api import Otf, OtfUser
 from otf_api.models.bookings import BookingStatus
 
 app = Flask(__name__)
@@ -25,6 +25,18 @@ PREFERRED_COACH_NAMES = [
     "natasha",
     "lily",
 ]
+
+def create_otf_client():
+    email = (os.environ.get("OTF_EMAIL") or "").strip()
+    password = (os.environ.get("OTF_PASSWORD") or "").strip()
+
+    if not email:
+        raise ValueError("OTF_EMAIL environment variable is missing or blank.")
+
+    if not password:
+        raise ValueError("OTF_PASSWORD environment variable is missing or blank.")
+
+    return Otf(user=OtfUser(email, password))
 
 def coach_name(coach):
     if not coach:
@@ -139,7 +151,7 @@ def find_coach_image_url_for_class(otf, otf_class):
     return None
 
 def fetch_next_class_data():
-    otf = Otf()
+    otf = create_otf_client()
 
     lifetime_classes = get_lifetime_classes(otf)
 
