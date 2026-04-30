@@ -176,6 +176,21 @@ def fetch_next_class_data():
 
     combined = booked + waitlisted
 
+    # Remove classes that already started.
+    # The OTF bookings endpoint can still return earlier classes from today.
+    now = pendulum.now()
+    future_combined = []
+
+    for booking in combined:
+        try:
+            starts_at = pendulum.instance(booking.otf_class.starts_at)
+            if starts_at > now:
+                future_combined.append(booking)
+        except Exception:
+            future_combined.append(booking)
+
+    combined = future_combined
+
     coach_images = collect_coach_images_from_favorite_studios(otf)
 
     if not combined:
