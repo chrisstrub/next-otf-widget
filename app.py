@@ -1,16 +1,15 @@
 import os
 import random
+import hashlib
 import pendulum
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from otf_api import Otf, OtfUser
 from otf_api.models.bookings import BookingStatus
 
 app = Flask(__name__)
 
-CACHE = {
-    "data": None,
-    "fetched_at": None,
-}
+# Cache is now per user, so Brian's widget will never receive Chris's cached class data.
+CACHE = {}
 
 CACHE_SECONDS = int(os.environ.get("CACHE_SECONDS", "60"))
 
@@ -26,15 +25,36 @@ PREFERRED_COACH_NAMES = [
     "lily",
 ]
 
-def create_otf_client():
-    email = (os.environ.get("OTF_EMAIL") or "").strip()
-    password = (os.environ.get("OTF_PASSWORD") or "").strip()
+PRIVACY_NOTE = (
+    "Your Orangetheory email and password are used only to fetch your widget data. "
+    "This backend does not save your password or write it to a database."
+)
 
+def clean_value(value):
+    return (value or "").strip()
+
+def get_request_credentials():
+    """
+    Credentials should come from Scriptable request headers.
+    This keeps credentials out of the shared code and out of the public GitHub repo.
+    """
+    email = clean_value(request.headers.get("X-OTF-Email"))
+    password = clean_value(request.headers.get("X-OTF-Password"))
+
+    if not email or not password:
+        return None, None
+
+    return email, password
+
+def cache_key_for_email(email):
+    return hashlib.sha256(email.lower().encode("utf-8")).hexdigest()
+
+def create_otf_client(email, password):
     if not email:
-        raise ValueError("OTF_EMAIL environment variable is missing or blank.")
+        raise ValueError("Missing Orangetheory email.")
 
     if not password:
-        raise ValueError("OTF_PASSWORD environment variable is missing or blank.")
+        raise ValueError("Missing Orangetheory password.")
 
     return Otf(user=OtfUser(email, password))
 
@@ -150,8 +170,8 @@ def find_coach_image_url_for_class(otf, otf_class):
 
     return None
 
-def fetch_next_class_data():
-    otf = create_otf_client()
+def fetch_next_class_data(email, password):
+    otf = create_otf_client(email, password)
 
     lifetime_classes = get_lifetime_classes(otf)
 
@@ -177,7 +197,6 @@ def fetch_next_class_data():
     combined = booked + waitlisted
 
     # Remove classes that already started.
-    # The OTF bookings endpoint can still return earlier classes from today.
     now = pendulum.now()
     future_combined = []
 
@@ -216,6 +235,7 @@ def fetch_next_class_data():
             "status": "No upcoming classes",
             "lifetime_classes": lifetime_classes,
             "last_checked": pendulum.now().format("h:mm A"),
+            "privacy_note": PRIVACY_NOTE,
         }
 
     combined = sorted(combined, key=lambda b: b.otf_class.starts_at)
@@ -249,29 +269,48 @@ def fetch_next_class_data():
         "status": status,
         "lifetime_classes": lifetime_classes,
         "last_checked": pendulum.now().format("h:mm A"),
+        "privacy_note": PRIVACY_NOTE,
     }
 
-def get_cached_next_class_data(force_refresh=False):
+def get_cached_next_class_data(email, password, force_refresh=False):
     now = pendulum.now()
+    user_cache_key = cache_key_for_email(email)
+
+    cached = CACHE.get(user_cache_key)
 
     if (
         not force_refresh and
-        CACHE["data"] is not None and
-        CACHE["fetched_at"] is not None and
-        (now - CACHE["fetched_at"]).total_seconds() < CACHE_SECONDS
+        cached is not None and
+        cached.get("data") is not None and
+        cached.get("fetched_at") is not None and
+        (now - cached["fetched_at"]).total_seconds() < CACHE_SECONDS
     ):
-        return CACHE["data"]
+        return cached["data"]
 
-    data = fetch_next_class_data()
-    CACHE["data"] = data
-    CACHE["fetched_at"] = now
+    data = fetch_next_class_data(email, password)
+
+    CACHE[user_cache_key] = {
+        "data": data,
+        "fetched_at": now,
+    }
+
     return data
+
+def credentials_required_response():
+    return jsonify({
+        "has_class": False,
+        "status": "Credentials required",
+        "message": "Open the Scriptable widget and enter your Orangetheory email and password when prompted.",
+        "privacy_note": PRIVACY_NOTE,
+        "last_checked": pendulum.now().format("h:mm A"),
+    }), 401
 
 @app.route("/")
 def home():
     return jsonify({
         "name": "Next OTF Widget API",
         "status": "running",
+        "privacy_note": PRIVACY_NOTE,
         "endpoints": [
             "/api/next-class",
             "/api/refresh"
@@ -281,24 +320,36 @@ def home():
 @app.route("/api/next-class")
 def api_next_class():
     try:
-        return jsonify(get_cached_next_class_data(force_refresh=False))
+        email, password = get_request_credentials()
+
+        if not email or not password:
+            return credentials_required_response()
+
+        return jsonify(get_cached_next_class_data(email, password, force_refresh=False))
     except Exception as e:
         return jsonify({
             "has_class": False,
             "status": "Error",
             "error": str(e),
+            "privacy_note": PRIVACY_NOTE,
             "last_checked": pendulum.now().format("h:mm A"),
         }), 500
 
 @app.route("/api/refresh")
 def api_refresh():
     try:
-        return jsonify(get_cached_next_class_data(force_refresh=True))
+        email, password = get_request_credentials()
+
+        if not email or not password:
+            return credentials_required_response()
+
+        return jsonify(get_cached_next_class_data(email, password, force_refresh=True))
     except Exception as e:
         return jsonify({
             "has_class": False,
             "status": "Error",
             "error": str(e),
+            "privacy_note": PRIVACY_NOTE,
             "last_checked": pendulum.now().format("h:mm A"),
         }), 500
 
