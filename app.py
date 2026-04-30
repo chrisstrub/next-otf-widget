@@ -273,31 +273,3 @@ def api_refresh():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
     app.run(host="0.0.0.0", port=port)
-
-@app.route("/api/env-check")
-def api_env_check():
-    email = os.environ.get("OTF_EMAIL")
-    password = os.environ.get("OTF_PASSWORD")
-
-    return jsonify({
-        "otf_email_present": bool(email),
-        "otf_email_length": len(email) if email else 0,
-        "otf_email_preview": (email[:2] + "***" + email[-4:]) if email and len(email) >= 6 else None,
-        "otf_password_present": bool(password),
-        "otf_password_length": len(password) if password else 0,
-        "cache_seconds": os.environ.get("CACHE_SECONDS"),
-    })
-
-@app.route("/api/env-check")
-def api_env_check():
-    email = os.environ.get("OTF_EMAIL")
-    password = os.environ.get("OTF_PASSWORD")
-
-    return jsonify({
-        "otf_email_present": bool(email),
-        "otf_email_length": len(email) if email else 0,
-        "otf_email_preview": (email[:2] + "***" + email[-4:]) if email and len(email) >= 6 else None,
-        "otf_password_present": bool(password),
-        "otf_password_length": len(password) if password else 0,
-        "cache_seconds": os.environ.get("CACHE_SECONDS"),
-    })
