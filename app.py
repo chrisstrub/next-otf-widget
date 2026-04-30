@@ -218,6 +218,11 @@ def fetch_next_class_data():
     coach = getattr(otf_class, "coach", None)
     coach_image_url = find_coach_image_url_for_class(otf, otf_class)
 
+    if not coach_image_url and coach:
+        coach_first = getattr(coach, "first_name", "")
+        coach_key = coach_first.strip().lower()
+        coach_image_url = coach_images.get(coach_key)
+
     return {
         "has_class": True,
         "class_name": otf_class.name,
