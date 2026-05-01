@@ -621,6 +621,7 @@ def home():
             "/api/next-class",
             "/api/refresh",
             "/api/install-event",
+            "/api/public-stats",
             "/api/stats"
         ]
     })
@@ -732,6 +733,27 @@ def api_install_event():
         "status": "Install event recorded",
         "last_checked": pendulum.now().format("h:mm A"),
     })
+
+
+@app.route("/api/public-stats")
+def api_public_stats():
+    """
+    Public, privacy-safe stats for the install page.
+
+    This exposes only broad counts. It does not expose emails, user hashes,
+    studios, recent events, or anything credential-related.
+    """
+    summary = analytics_summary()
+
+    resp = jsonify({
+        "script_downloads": summary.get("install_events", 0),
+        "unique_widget_users": summary.get("unique_users", 0),
+        "last_updated": pendulum.now().format("MMM D, YYYY h:mm A"),
+    })
+
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    return resp
+
 
 @app.route("/api/stats")
 def api_stats():

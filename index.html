@@ -61,6 +61,30 @@
       margin: 0 0 24px;
     }
 
+
+    .metric-card {
+      margin: 22px 0 8px;
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      text-align: center;
+    }
+
+    .metric-number {
+      font-size: clamp(34px, 10vw, 56px);
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+    }
+
+    .metric-label {
+      margin-top: 6px;
+      font-size: 15px;
+      color: rgba(255,255,255,0.82);
+      font-weight: 700;
+    }
+
     .button {
       display: block;
       width: 100%;
@@ -254,6 +278,12 @@
       coach photo, studio, and lifetime class count.
     </p>
 
+    <div class="metric-card">
+      <div class="metric-number" id="scriptDownloads">—</div>
+      <div class="metric-label">Next OTF script installs and counting</div>
+    </div>
+
+
     <div class="gallery-wrap">
       <h2 class="gallery-title">See the widget in action</h2>
       <p class="gallery-sub">
@@ -371,6 +401,15 @@ async function installScript() {
 
   fm.writeString(path, code);
 
+  try {
+    let ping = new Request("https://next-otf-widget.onrender.com/api/install-event");
+    ping.method = "POST";
+    ping.timeoutInterval = 5;
+    await ping.loadJSON();
+  } catch (e) {
+    // Install still succeeded. Analytics ping is optional.
+  }
+
   let alert = new Alert();
   alert.title = "Next OTF Installed";
   alert.message =
@@ -398,6 +437,32 @@ try {
 Script.complete();</textarea>
 
   <script>
+
+    async function loadPublicStats() {
+      const el = document.getElementById("scriptDownloads");
+      if (!el) return;
+
+      try {
+        const res = await fetch("https://next-otf-widget.onrender.com/api/public-stats", {
+          cache: "no-store"
+        });
+
+        const data = await res.json();
+        const downloads = data.script_downloads;
+
+        if (typeof downloads === "number") {
+          el.textContent = downloads.toLocaleString();
+        } else {
+          el.textContent = "—";
+        }
+      } catch (err) {
+        el.textContent = "—";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadPublicStats);
+
+
     async function copyInstaller() {
       const code = document.getElementById("installer").value;
       const status = document.getElementById("status");
