@@ -280,7 +280,7 @@
 
     <div class="metric-card">
       <div class="metric-number" id="scriptDownloads">—</div>
-      <div class="metric-label">Next OTF script installs and counting</div>
+      <div class="metric-label">Next OTF script copies and counting</div>
     </div>
 
 
@@ -318,7 +318,7 @@
       Step 1: Download Scriptable from the App Store
     </a>
 
-    <button class="button" onclick="copyInstaller()">Copy Installer Script</button>
+    <button class="button" onclick="copyInstaller()">Copy Full Script</button>
     <div id="status" class="status"></div>
 
     <ol class="steps">
@@ -330,20 +330,20 @@
       </li>
       <li>
         <div>
-          <strong>Copy the installer</strong>
-          <span>Tap the orange button above to copy the tiny installer script.</span>
+          <strong>Copy the full script</strong>
+          <span>Tap the orange button above to copy the full Next OTF Scriptable code.</span>
         </div>
       </li>
       <li>
         <div>
           <strong>Create a Scriptable script</strong>
-          <span>Open Scriptable, tap <code>+</code>, paste the installer, and tap Run.</span>
+          <span>Open Scriptable, tap <code>+</code>, name the script <code>Next OTF</code>, and paste the code.</span>
         </div>
       </li>
       <li>
         <div>
           <strong>Run Next OTF once</strong>
-          <span>The installer creates a new script called <code>Next OTF</code>. Open it, run it, and log in with your Orangetheory credentials.</span>
+          <span>Tap Run, then log in with your Orangetheory credentials when prompted.</span>
         </div>
       </li>
       <li>
@@ -382,59 +382,7 @@
     </div>
   </main>
 
-  <textarea id="installer">const RAW_SCRIPT_URL = "https://raw.githubusercontent.com/chrisstrub/next-otf-widget/main/next-otf-scriptable.js";
-const SCRIPT_NAME = "Next OTF";
-
-async function installScript() {
-  let req = new Request(RAW_SCRIPT_URL);
-  req.timeoutInterval = 30;
-
-  let code = await req.loadString();
-
-  if (!code || code.length < 1000) {
-    throw new Error("The downloaded script looks too short. Check the GitHub raw URL.");
-  }
-
-  const fm = FileManager.local();
-  const dir = fm.documentsDirectory();
-  const path = fm.joinPath(dir, `${SCRIPT_NAME}.js`);
-
-  fm.writeString(path, code);
-
-  try {
-    let ping = new Request("https://next-otf-widget.onrender.com/api/install-event");
-    ping.method = "POST";
-    ping.timeoutInterval = 5;
-    await ping.loadJSON();
-  } catch (e) {
-    // Install still succeeded. Analytics ping is optional.
-  }
-
-  let alert = new Alert();
-  alert.title = "Next OTF Installed";
-  alert.message =
-    "The Next OTF widget script has been installed.\n\n" +
-    "Next step: open the script named “Next OTF,” run it once, and log in with your Orangetheory credentials.";
-  alert.addAction("Done");
-  await alert.presentAlert();
-
-  let notification = new Notification();
-  notification.title = "Next OTF Installed";
-  notification.body = "Open Scriptable and run the Next OTF script once to log in.";
-  await notification.schedule();
-}
-
-try {
-  await installScript();
-} catch (e) {
-  let alert = new Alert();
-  alert.title = "Install Failed";
-  alert.message = e.message;
-  alert.addAction("OK");
-  await alert.presentAlert();
-}
-
-Script.complete();</textarea>
+  <textarea id="installer"></textarea>
 
   <script>
 
@@ -463,13 +411,42 @@ Script.complete();</textarea>
     document.addEventListener("DOMContentLoaded", loadPublicStats);
 
 
+
+    async function loadFullScriptableCode() {
+      const textarea = document.getElementById("installer");
+      if (!textarea) return;
+
+      try {
+        const res = await fetch("https://raw.githubusercontent.com/chrisstrub/next-otf-widget/main/next-otf-scriptable.js", {
+          cache: "no-store"
+        });
+
+        const code = await res.text();
+
+        if (!code || code.length < 1000) {
+          throw new Error("Script looked too short.");
+        }
+
+        textarea.value = code;
+      } catch (err) {
+        textarea.value = "";
+        const status = document.getElementById("status");
+        if (status) {
+          status.textContent = "Could not load the script. Refresh and try again.";
+        }
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", loadFullScriptableCode);
+
+
     async function copyInstaller() {
       const code = document.getElementById("installer").value;
       const status = document.getElementById("status");
 
       try {
         await navigator.clipboard.writeText(code);
-        status.textContent = "Copied! Now open Scriptable and paste it into a new script.";
+        status.textContent = "Copied! Now open Scriptable, create a new script named Next OTF, paste this code, and run it.";
       } catch (err) {
         const textarea = document.getElementById("installer");
         textarea.style.position = "static";
@@ -480,7 +457,7 @@ Script.complete();</textarea>
         textarea.style.position = "fixed";
         textarea.style.left = "-9999px";
         textarea.style.top = "-9999px";
-        status.textContent = "Copied! Now open Scriptable and paste it into a new script.";
+        status.textContent = "Copied! Now open Scriptable, create a new script named Next OTF, paste this code, and run it.";
       }
     }
   </script>
