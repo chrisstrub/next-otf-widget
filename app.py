@@ -88,10 +88,43 @@ def coach_first_name_from_model(coach):
     return None
 
 def get_lifetime_classes(otf):
+    """
+    Approximate the prominent lifetime class count shown in the OTF app.
+
+    The older member.class_summary fields undercount total classes.
+    The closer source is the raw performance summaries endpoint.
+
+    Current rule:
+    - use performance summaries
+    - count records where class.ot_base_class_uuid is None
+    - exclude Orangetheory 101 Workshop, which appears to be a non-class workshop
+    """
     try:
-        return otf.member.class_summary.total_classes_attended
+        raw = otf.workouts.client.get_performance_summaries(limit=2000)
+        items = raw.get("items", [])
+
+        count = 0
+
+        for item in items:
+            cls = item.get("class") or {}
+            class_name = (cls.get("name") or cls.get("className") or "").strip().lower()
+            base_uuid = cls.get("ot_base_class_uuid")
+
+            if base_uuid is not None:
+                continue
+
+            if class_name == "orangetheory 101 workshop":
+                continue
+
+            count += 1
+
+        return count
+
     except Exception:
-        return None
+        try:
+            return otf.member.class_summary.total_classes_attended
+        except Exception:
+            return None
 
 def get_studio_uuid_from_obj(studio):
     for attr in ["studio_uuid", "uuid", "id"]:
