@@ -35,7 +35,7 @@ async function showLoginPrompt(force = false) {
   }
 
   let req = new Request(LOGIN_TEST_URL);
-  req.timeoutInterval = 20;
+  req.timeoutInterval = 60;
   req.headers = {
     "X-OTF-Email": email,
     "X-OTF-Password": password
@@ -72,7 +72,7 @@ async function resetCredentials() {
 
 async function fetchData(email, password) {
   let req = new Request(NEXT_CLASS_URL);
-  req.timeoutInterval = 20;
+  req.timeoutInterval = 60;
   req.headers = {
     "X-OTF-Email": email,
     "X-OTF-Password": password
@@ -220,7 +220,7 @@ async function createWidget(data) {
   if (backgroundUrl) {
     try {
       let bgReq = new Request(backgroundUrl);
-      bgReq.timeoutInterval = 4;
+      bgReq.timeoutInterval = 10;
       let bgImage = await bgReq.loadImage();
       widget.backgroundImage = bgImage;
     } catch (e) {
