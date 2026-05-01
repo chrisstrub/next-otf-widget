@@ -1,6 +1,7 @@
 import os
 import random
 import hashlib
+from collections import Counter
 import pendulum
 from flask import Flask, jsonify, request
 from otf_api import Otf, OtfUser
@@ -194,6 +195,70 @@ def collect_coach_images_from_favorite_studios(otf):
     studio_uuids = get_favorite_and_home_studio_uuids(otf)
     return collect_coach_images_from_studios(otf, studio_uuids)
 
+def get_top_coach_image_urls_from_performance_summaries(otf, fallback_coach_images=None, limit=3):
+    """
+    Find the user's most frequent coaches from their performance summaries.
+
+    Returns a list of image URLs for the top coaches, when available.
+    This is user-specific and not tied to any city/studio.
+    """
+    fallback_coach_images = fallback_coach_images or {}
+
+    try:
+        raw = otf.workouts.client.get_performance_summaries(limit=2000)
+        items = raw.get("items", [])
+
+        coach_counts = Counter()
+        coach_image_by_key = {}
+        coach_display_by_key = {}
+
+        for item in items:
+            cls = item.get("class") or {}
+            coach = cls.get("coach") or {}
+
+            raw_name = (
+                coach.get("first_name")
+                or coach.get("name")
+                or coach.get("display_name")
+                or ""
+            )
+
+            raw_name = str(raw_name).strip()
+
+            if not raw_name:
+                continue
+
+            # Some OTF responses put full names inside first_name.
+            # Use the full raw name for counting, but first token for fallback image matching.
+            coach_key = raw_name.lower()
+            first_token = raw_name.split()[0].lower()
+
+            coach_counts[coach_key] += 1
+            coach_display_by_key[coach_key] = raw_name
+
+            image_url = coach.get("image_url")
+            if image_url:
+                coach_image_by_key[coach_key] = image_url
+
+            # If the exact coach image is missing from the performance summary,
+            # try matching against the user's current home/favorite studio coach images.
+            if coach_key not in coach_image_by_key and first_token in fallback_coach_images:
+                coach_image_by_key[coach_key] = fallback_coach_images[first_token]
+
+        top_coaches = coach_counts.most_common(limit)
+
+        image_urls = []
+
+        for coach_key, count in top_coaches:
+            image_url = coach_image_by_key.get(coach_key)
+            if image_url:
+                image_urls.append(image_url)
+
+        return image_urls
+
+    except Exception:
+        return []
+
 def parse_raw_class_start(raw_class, studio_tz):
     raw_start = raw_class.get("starts_at") or raw_class.get("startsAt")
     if not raw_start:
@@ -308,13 +373,13 @@ def fetch_next_class_data(email, password):
     coach_images = collect_coach_images_from_favorite_studios(otf)
 
     if not combined:
-        preferred_urls = [
-            coach_images[name]
-            for name in PREFERRED_NO_CLASS_COACHES
-            if name in coach_images and coach_images[name]
-        ]
+        top_coach_image_urls = get_top_coach_image_urls_from_performance_summaries(
+            otf,
+            fallback_coach_images=coach_images,
+            limit=3,
+        )
 
-        random_coach_image = random.choice(preferred_urls) if preferred_urls else None
+        random_coach_image = random.choice(top_coach_image_urls) if top_coach_image_urls else None
 
         if not random_coach_image and coach_images:
             random_coach_image = random.choice(list(coach_images.values()))
@@ -327,6 +392,7 @@ def fetch_next_class_data(email, password):
             "coach": None,
             "coach_image_url": random_coach_image,
             "coach_images": coach_images,
+            "top_coach_image_urls": top_coach_image_urls,
             "status": "No upcoming classes",
             "lifetime_classes": lifetime_classes,
             "last_checked": pendulum.now().format("h:mm A"),
