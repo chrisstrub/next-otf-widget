@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install Next OTF</title>
+  <style>
+    :root {
+      --orange: #f26a21;
+      --black: #111111;
+      --soft: #fff4ec;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(160deg, var(--orange), #1b1b1b 70%);
+      color: white;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .card {
+      max-width: 920px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.68);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 28px;
+      padding: 28px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(8px);
+    }
+
+    .badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.14);
+      border-radius: 999px;
+      padding: 8px 13px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 8vw, 58px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .subhead {
+      font-size: 18px;
+      line-height: 1.45;
+      color: var(--soft);
+      margin: 0 0 24px;
+    }
+
+    .button {
+      display: block;
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      padding: 17px 20px;
+      background: var(--orange);
+      color: white;
+      font-size: 18px;
+      font-weight: 900;
+      cursor: pointer;
+      margin: 18px 0 12px;
+      box-shadow: 0 10px 30px rgba(242, 106, 33, 0.35);
+    }
+
+    .button:active {
+      transform: translateY(1px);
+    }
+
+    .secondary {
+      display: block;
+      text-align: center;
+      color: white;
+      text-decoration: none;
+      font-weight: 800;
+      margin: 16px 0;
+      opacity: 0.92;
+    }
+
+    .gallery-wrap {
+      margin: 28px 0 10px;
+    }
+
+    .gallery-title {
+      margin: 0 0 12px;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .gallery-sub {
+      margin: 0 0 18px;
+      color: rgba(255,255,255,0.8);
+      font-size: 15px;
+      line-height: 1.45;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .shot {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 22px;
+      padding: 12px;
+    }
+
+    .shot img {
+      width: 100%;
+      display: block;
+      border-radius: 16px;
+      box-shadow: 0 16px 35px rgba(0,0,0,0.28);
+    }
+
+    .caption {
+      margin-top: 10px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.8);
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .steps {
+      margin: 28px 0 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: steps;
+    }
+
+    .steps li {
+      counter-increment: steps;
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 15px 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .steps li::before {
+      content: counter(steps);
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.16);
+      color: white;
+      font-weight: 900;
+    }
+
+    .steps strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 3px;
+    }
+
+    .steps span {
+      display: block;
+      color: rgba(255, 255, 255, 0.82);
+      line-height: 1.35;
+      font-size: 15px;
+    }
+
+    .section {
+      margin-top: 28px;
+      padding-top: 22px;
+      border-top: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      letter-spacing: -0.03em;
+    }
+
+    .section p {
+      margin: 0 0 12px;
+      color: rgba(255,255,255,0.84);
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    .links a {
+      color: white;
+      font-weight: 800;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(255,255,255,0.35);
+    }
+
+    .links a:hover {
+      border-bottom-color: white;
+    }
+
+    .note {
+      margin-top: 22px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .status {
+      min-height: 22px;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--soft);
+      text-align: center;
+    }
+
+    textarea {
+      position: fixed;
+      left: -9999px;
+      top: -9999px;
+    }
+
+    code {
+      color: var(--soft);
+      font-weight: 800;
+    }
+
+    @media (max-width: 700px) {
+      .gallery {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="badge">🍊 Scriptable Widget</div>
+
+    <h1>Install<br>Next OTF</h1>
+
+    <p class="subhead">
+      A home screen widget that shows your next Orangetheory class, booked or waitlist status,
+      coach photo, studio, and lifetime class count.
+    </p>
+
+    <div class="gallery-wrap">
+      <h2 class="gallery-title">See the widget in action</h2>
+      <p class="gallery-sub">
+        Here are a few examples of how Next OTF looks on your iPhone, including booked classes,
+        waitlist status, and the motivational “book now” state.
+      </p>
+
+      <div class="gallery">
+        <div class="shot">
+          <img src="widget-booked-hyrox.png" alt="Booked class widget example">
+          <div class="caption">Booked class example</div>
+        </div>
+
+        <div class="shot">
+          <img src="widget-waitlist-jon.png" alt="Waitlist widget example">
+          <div class="caption">Waitlist example</div>
+        </div>
+
+        <div class="shot">
+          <img src="widget-book-now-lily.png" alt="Book now widget example with Coach Lily">
+          <div class="caption">No upcoming class: Coach Lily edition</div>
+        </div>
+
+        <div class="shot">
+          <img src="widget-book-now-toni.png" alt="Book now widget example with Coach Toni">
+          <div class="caption">No upcoming class: Coach Toni edition</div>
+        </div>
+      </div>
+    </div>
+
+    <a class="secondary" href="https://apps.apple.com/us/app/scriptable/id1405459188" target="_blank" rel="noopener">
+      Step 1: Download Scriptable from the App Store
+    </a>
+
+    <button class="button" onclick="copyInstaller()">Copy Installer Script</button>
+    <div id="status" class="status"></div>
+
+    <ol class="steps">
+      <li>
+        <div>
+          <strong>Download Scriptable</strong>
+          <span>Install the free Scriptable app from the App Store.</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Copy the installer</strong>
+          <span>Tap the orange button above to copy the tiny installer script.</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Create a Scriptable script</strong>
+          <span>Open Scriptable, tap <code>+</code>, paste the installer, and tap Run.</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Run Next OTF once</strong>
+          <span>The installer creates a new script called <code>Next OTF</code>. Open it, run it, and log in with your Orangetheory credentials.</span>
+        </div>
+      </li>
+      <li>
+        <div>
+          <strong>Add the widget</strong>
+          <span>On your iPhone home screen, add a medium Scriptable widget and choose <code>Next OTF</code> as the script.</span>
+        </div>
+      </li>
+    </ol>
+
+    <div class="section">
+      <h2>Created by Chris Strub</h2>
+      <p>Next OTF was created by <strong>Chris Strub</strong>.</p>
+      <p class="links">
+        Follow Chris on Instagram:
+        <a href="https://instagram.com/chrisstrub" target="_blank" rel="noopener">@ChrisStrub</a>
+      </p>
+      <p class="links">
+        Check out the podcast:
+        <a href="https://youtube.com/playlist?list=PLkfzs_GsQ8kGi92qbcUKXB_J-riVK-k7I&si=flrwvpg2RPMpdKin" target="_blank" rel="noopener">
+          Chris Strub Unmuted
+        </a>
+      </p>
+    </div>
+
+    <div class="note">
+      Privacy note: your Orangetheory login is saved only on your iPhone inside Scriptable’s secure Keychain.
+      It is sent over HTTPS only so the widget can fetch your class data. The backend does not save your password.
+    </div>
+  </main>
+
+  <textarea id="installer">const RAW_SCRIPT_URL = "https://raw.githubusercontent.com/chrisstrub/next-otf-widget/main/next-otf-scriptable.js";
+const SCRIPT_NAME = "Next OTF";
+
+async function installScript() {
+  let req = new Request(RAW_SCRIPT_URL);
+  req.timeoutInterval = 30;
+
+  let code = await req.loadString();
+
+  if (!code || code.length < 1000) {
+    throw new Error("The downloaded script looks too short. Check the GitHub raw URL.");
+  }
+
+  const fm = FileManager.local();
+  const dir = fm.documentsDirectory();
+  const path = fm.joinPath(dir, `${SCRIPT_NAME}.js`);
+
+  fm.writeString(path, code);
+
+  let alert = new Alert();
+  alert.title = "Next OTF Installed";
+  alert.message =
+    "The Next OTF widget script has been installed.\n\n" +
+    "Next step: open the script named “Next OTF,” run it once, and log in with your Orangetheory credentials.";
+  alert.addAction("Done");
+  await alert.presentAlert();
+
+  let notification = new Notification();
+  notification.title = "Next OTF Installed";
+  notification.body = "Open Scriptable and run the Next OTF script once to log in.";
+  await notification.schedule();
+}
+
+try {
+  await installScript();
+} catch (e) {
+  let alert = new Alert();
+  alert.title = "Install Failed";
+  alert.message = e.message;
+  alert.addAction("OK");
+  await alert.presentAlert();
+}
+
+Script.complete();</textarea>
+
+  <script>
+    async function copyInstaller() {
+      const code = document.getElementById("installer").value;
+      const status = document.getElementById("status");
+
+      try {
+        await navigator.clipboard.writeText(code);
+        status.textContent = "Copied! Now open Scriptable and paste it into a new script.";
+      } catch (err) {
+        const textarea = document.getElementById("installer");
+        textarea.style.position = "static";
+        textarea.style.left = "auto";
+        textarea.style.top = "auto";
+        textarea.select();
+        document.execCommand("copy");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "-9999px";
+        status.textContent = "Copied! Now open Scriptable and paste it into a new script.";
+      }
+    }
+  </script>
+</body>
+</html>
