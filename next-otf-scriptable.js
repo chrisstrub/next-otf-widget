@@ -108,6 +108,16 @@ function randomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function formatLocalRefreshTime(data) {
+  // LOCAL_TIME_PATCH_2026_05_01
+  // Use this iPhone's own clock/timezone, not Render/server time.
+  return new Date().toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+}
+
+
 const noClassPhrases = [
   "Go book your next burn.",
   "Future you wants a class booked.",
@@ -263,7 +273,8 @@ async function createWidget(data) {
 
   top.addSpacer();
 
-  let checked = top.addText(data.last_checked ? `↻ ${data.last_checked}` : "");
+  const localRefreshTime = formatLocalRefreshTime(data);
+  let checked = top.addText(localRefreshTime ? `LOCAL ↻ ${localRefreshTime}` : "");
   checked.font = Font.mediumSystemFont(10);
   checked.textColor = white;
   checked.textOpacity = 0.82;
