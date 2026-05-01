@@ -1,4 +1,5 @@
 import os
+import json
 import random
 import hashlib
 from collections import Counter
@@ -459,6 +460,156 @@ def get_cached_next_class_data(email, password, force_refresh=False):
 
     return data
 
+
+ANALYTICS_FILE = os.environ.get("ANALYTICS_FILE", "analytics.json")
+STATS_SECRET = os.environ.get("STATS_SECRET", "")
+
+def now_iso():
+    return pendulum.now().to_iso8601_string()
+
+def anonymize_email(email):
+    if not email:
+        return None
+    return hashlib.sha256(email.lower().strip().encode("utf-8")).hexdigest()[:16]
+
+def load_analytics():
+    try:
+        with open(ANALYTICS_FILE, "r") as f:
+            return json.load(f)
+    except Exception:
+        return {
+            "created_at": now_iso(),
+            "events_total": 0,
+            "install_events": 0,
+            "login_success": 0,
+            "login_failed": 0,
+            "refresh_success": 0,
+            "refresh_failed": 0,
+            "status_counts": {},
+            "studio_counts": {},
+            "users": {},
+            "recent_events": [],
+        }
+
+def save_analytics(data):
+    try:
+        with open(ANALYTICS_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+def increment_counter(container, key, amount=1):
+    key = str(key or "unknown")
+    container[key] = container.get(key, 0) + amount
+
+def record_analytics_event(event_type, email=None, payload=None):
+    """
+    Privacy-safe analytics.
+
+    Stores:
+    - hashed email only, never raw email
+    - event counts
+    - coarse class/studio/status info
+    - recent event summaries
+
+    Does not store:
+    - OTF password
+    - raw OTF email
+    """
+    payload = payload or {}
+    data = load_analytics()
+
+    data["events_total"] = data.get("events_total", 0) + 1
+    data["last_event_at"] = now_iso()
+
+    if event_type == "install":
+        data["install_events"] = data.get("install_events", 0) + 1
+    elif event_type == "login_success":
+        data["login_success"] = data.get("login_success", 0) + 1
+    elif event_type == "login_failed":
+        data["login_failed"] = data.get("login_failed", 0) + 1
+    elif event_type == "refresh_success":
+        data["refresh_success"] = data.get("refresh_success", 0) + 1
+    elif event_type == "refresh_failed":
+        data["refresh_failed"] = data.get("refresh_failed", 0) + 1
+
+    status = payload.get("status")
+    studio = payload.get("studio")
+    has_class = payload.get("has_class")
+
+    if status:
+        increment_counter(data.setdefault("status_counts", {}), status)
+
+    if studio:
+        increment_counter(data.setdefault("studio_counts", {}), studio)
+
+    user_hash = anonymize_email(email)
+
+    if user_hash:
+        users = data.setdefault("users", {})
+        user = users.setdefault(user_hash, {
+            "first_seen": now_iso(),
+            "events": 0,
+            "login_success": 0,
+            "login_failed": 0,
+            "refresh_success": 0,
+            "refresh_failed": 0,
+        })
+
+        user["last_seen"] = now_iso()
+        user["events"] = user.get("events", 0) + 1
+
+        if event_type in user:
+            user[event_type] = user.get(event_type, 0) + 1
+
+        if status:
+            user["last_status"] = status
+        if studio:
+            user["last_studio"] = studio
+        if has_class is not None:
+            user["last_has_class"] = has_class
+
+    recent_event = {
+        "time": now_iso(),
+        "event": event_type,
+        "user_hash": user_hash,
+        "status": status,
+        "studio": studio,
+        "has_class": has_class,
+    }
+
+    recent_events = data.setdefault("recent_events", [])
+    recent_events.append(recent_event)
+    data["recent_events"] = recent_events[-50:]
+
+    save_analytics(data)
+
+def analytics_summary():
+    data = load_analytics()
+    users = data.get("users", {})
+
+    return {
+        "created_at": data.get("created_at"),
+        "last_event_at": data.get("last_event_at"),
+        "events_total": data.get("events_total", 0),
+        "install_events": data.get("install_events", 0),
+        "login_success": data.get("login_success", 0),
+        "login_failed": data.get("login_failed", 0),
+        "refresh_success": data.get("refresh_success", 0),
+        "refresh_failed": data.get("refresh_failed", 0),
+        "unique_users": len(users),
+        "status_counts": data.get("status_counts", {}),
+        "studio_counts": data.get("studio_counts", {}),
+        "recent_events": data.get("recent_events", [])[-20:],
+    }
+
+def stats_authorized():
+    if not STATS_SECRET:
+        return True
+    supplied = request.args.get("key") or request.headers.get("X-Stats-Key")
+    return supplied == STATS_SECRET
+
+
 @app.route("/")
 def home():
     return jsonify({
@@ -468,7 +619,9 @@ def home():
         "endpoints": [
             "/api/login-test",
             "/api/next-class",
-            "/api/refresh"
+            "/api/refresh",
+            "/api/install-event",
+            "/api/stats"
         ]
     })
 
@@ -482,6 +635,12 @@ def api_login_test():
 
         otf = create_otf_client(email, password)
 
+        record_analytics_event("login_success", email=email, payload={
+            "status": "Login successful",
+            "studio": getattr(otf.home_studio, "name", None),
+            "has_class": None,
+        })
+
         return jsonify({
             "ok": True,
             "status": "Login successful",
@@ -492,6 +651,14 @@ def api_login_test():
         })
 
     except Exception as e:
+        try:
+            email, _ = get_request_credentials()
+            record_analytics_event("login_failed", email=email, payload={
+                "status": "Login failed",
+                "has_class": None,
+            })
+        except Exception:
+            pass
         return safe_error_response(e, status_code=401)
 
 @app.route("/api/next-class")
@@ -502,9 +669,25 @@ def api_next_class():
         if not email or not password:
             return credentials_required_response()
 
-        return jsonify(get_cached_next_class_data(email, password, force_refresh=False))
+        data = get_cached_next_class_data(email, password, force_refresh=False)
+
+        record_analytics_event("refresh_success", email=email, payload={
+            "status": data.get("status"),
+            "studio": data.get("studio"),
+            "has_class": data.get("has_class"),
+        })
+
+        return jsonify(data)
 
     except Exception as e:
+        try:
+            email, _ = get_request_credentials()
+            record_analytics_event("refresh_failed", email=email, payload={
+                "status": "Error",
+                "has_class": False,
+            })
+        except Exception:
+            pass
         return safe_error_response(e, status_code=500)
 
 @app.route("/api/refresh")
@@ -515,10 +698,52 @@ def api_refresh():
         if not email or not password:
             return credentials_required_response()
 
-        return jsonify(get_cached_next_class_data(email, password, force_refresh=True))
+        data = get_cached_next_class_data(email, password, force_refresh=True)
+
+        record_analytics_event("refresh_success", email=email, payload={
+            "status": data.get("status"),
+            "studio": data.get("studio"),
+            "has_class": data.get("has_class"),
+        })
+
+        return jsonify(data)
 
     except Exception as e:
+        try:
+            email, _ = get_request_credentials()
+            record_analytics_event("refresh_failed", email=email, payload={
+                "status": "Error",
+                "has_class": False,
+            })
+        except Exception:
+            pass
         return safe_error_response(e, status_code=500)
+
+
+@app.route("/api/install-event", methods=["POST", "GET"])
+def api_install_event():
+    record_analytics_event("install", payload={
+        "status": "Installer copied/ran",
+        "has_class": None,
+    })
+
+    return jsonify({
+        "ok": True,
+        "status": "Install event recorded",
+        "last_checked": pendulum.now().format("h:mm A"),
+    })
+
+@app.route("/api/stats")
+def api_stats():
+    if not stats_authorized():
+        return jsonify({
+            "ok": False,
+            "status": "Unauthorized",
+            "message": "Missing or invalid stats key."
+        }), 401
+
+    return jsonify(analytics_summary())
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", "5050"))
