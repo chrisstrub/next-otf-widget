@@ -108,15 +108,16 @@ function randomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatLocalRefreshTime(data) {
-  // LOCAL_TIME_PATCH_2026_05_01
-  // Use this iPhone's own clock/timezone, not Render/server time.
-  return new Date().toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit"
-  });
+function getPhoneRefreshTime() {
+  // This intentionally uses ONLY the iPhone's own local clock.
+  // No backend timestamp. No Render timezone. No UTC conversion.
+  const now = new Date();
+  const hours = now.getHours();
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const hour12 = ((hours + 11) % 12) + 1;
+  const ampm = hours >= 12 ? "PM" : "AM";
+  return `${hour12}:${minutes} ${ampm}`;
 }
-
 
 const noClassPhrases = [
   "Go book your next burn.",
@@ -146,7 +147,33 @@ const noClassPhrases = [
   "The coach photo is here. Your booking is not."
 ];
 
-function pickNoClassPhrase() {
+function pickNoClassPhrase(topCoachFirstNames = []) {
+  const names = (topCoachFirstNames || []).filter(Boolean);
+
+  const coachSpecificTemplates = [
+    "Coach {name} says book the class before your excuses start stretching.",
+    "Coach {name} says your calendar looks suspiciously empty.",
+    "Coach {name} says future you is already proud. Present you needs to tap book.",
+    "Coach {name} says your splat points are not going to earn themselves.",
+    "Coach {name} says stop negotiating with the couch.",
+    "Coach {name} says hydrate, book, and stop being dramatic.",
+    "Coach {name} says this widget is judging you lovingly.",
+    "Coach {name} says if you can read this, you can book a class.",
+    "Coach {name} says no class booked is a bold strategy.",
+    "Coach {name} says the hardest rep is booking the class.",
+    "Coach {name} says the treadmills are not here for decoration.",
+    "Coach {name} says your future mood needs this.",
+    "Coach {name} says you can be tired after you book.",
+    "Coach {name} says one tap is easier than one burpee.",
+    "Coach {name} says the orange lights miss you personally."
+  ];
+
+  if (names.length && Math.random() < 0.6) {
+    const name = randomItem(names);
+    const template = randomItem(coachSpecificTemplates);
+    return template.replace("{name}", name);
+  }
+
   return randomItem(noClassPhrases);
 }
 
@@ -185,12 +212,8 @@ async function createWidget(data) {
   let noClassBackgroundUrl = null;
 
   if (!hasClass) {
-    selectedNoClassPhrase = pickNoClassPhrase();
+    selectedNoClassPhrase = pickNoClassPhrase(data.top_coach_first_names || []);
 
-    // Priority order:
-    // 1. Backend-provided top 3 most frequently booked coach photos
-    // 2. Backend-selected coach image
-    // 3. Any available coach image as a last fallback
     const topCoachImageUrls = data.top_coach_image_urls || [];
 
     if (topCoachImageUrls.length) {
@@ -273,8 +296,8 @@ async function createWidget(data) {
 
   top.addSpacer();
 
-  const localRefreshTime = formatLocalRefreshTime(data);
-  let checked = top.addText(localRefreshTime ? `LOCAL ↻ ${localRefreshTime}` : "");
+  // Refresh time: iPhone local time only.
+  let checked = top.addText(`↻ ${getPhoneRefreshTime()}`);
   checked.font = Font.mediumSystemFont(10);
   checked.textColor = white;
   checked.textOpacity = 0.82;
